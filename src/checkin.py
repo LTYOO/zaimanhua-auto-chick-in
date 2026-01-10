@@ -1,5 +1,10 @@
 import os
+import time
 from playwright.sync_api import sync_playwright
+
+# 配置
+MAX_RETRIES = 3
+PAGE_TIMEOUT = 60000  # 60秒
 
 
 def get_all_cookies():
@@ -40,8 +45,8 @@ def parse_cookies(cookie_str):
     return cookies
 
 
-def checkin(cookie_str):
-    """执行签到"""
+def checkin_once(cookie_str):
+    """执行一次签到尝试"""
     cookies = parse_cookies(cookie_str)
     print(f"已解析 {len(cookies)} 个 Cookie")
 
@@ -53,13 +58,16 @@ def checkin(cookie_str):
         context.add_cookies(cookies)
 
         page = context.new_page()
-        page.goto('https://i.zaimanhua.com/')
-
-        # 等待页面加载
-        page.wait_for_load_state('networkidle')
-        print(f"页面标题: {page.title()}")
+        page.set_default_timeout(PAGE_TIMEOUT)
 
         try:
+            # 访问页面，增加超时时间
+            page.goto('https://i.zaimanhua.com/', timeout=PAGE_TIMEOUT)
+
+            # 等待页面加载
+            page.wait_for_load_state('networkidle', timeout=PAGE_TIMEOUT)
+            print(f"页面标题: {page.title()}")
+
             # 等待签到按钮出现
             page.wait_for_selector('.ant-btn-primary', timeout=10000)
 
@@ -93,13 +101,35 @@ def checkin(cookie_str):
         except Exception as e:
             print(f"签到失败: {e}")
             # 保存截图用于调试
-            page.screenshot(path="error_screenshot.png")
-            print("已保存错误截图: error_screenshot.png")
+            try:
+                page.screenshot(path="error_screenshot.png")
+                print("已保存错误截图: error_screenshot.png")
+            except:
+                pass
             result = False
         finally:
             browser.close()
 
         return result
+
+
+def checkin(cookie_str):
+    """执行签到，带重试机制"""
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"尝试第 {attempt}/{MAX_RETRIES} 次...")
+        try:
+            if checkin_once(cookie_str):
+                return True
+        except Exception as e:
+            print(f"第 {attempt} 次尝试出错: {e}")
+
+        if attempt < MAX_RETRIES:
+            wait_time = attempt * 10  # 递增等待时间
+            print(f"等待 {wait_time} 秒后重试...")
+            time.sleep(wait_time)
+
+    print(f"已重试 {MAX_RETRIES} 次，签到失败")
+    return False
 
 
 def main():
