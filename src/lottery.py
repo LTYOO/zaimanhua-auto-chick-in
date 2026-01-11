@@ -12,6 +12,9 @@ BASE_URL = "https://luck-draw.zaimanhua.com"
 SECRET = "pD4vj_159753twt"
 MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
 
+# 阅读任务所需的最短时间（分钟）
+READING_MINUTES_FOR_LOTTERY = 1
+
 
 def generate_sign(channel: str, timestamp: int) -> str:
     """生成 API 签名"""
@@ -84,6 +87,23 @@ def execute_lottery_api(token: str) -> dict:
 def run_lottery_with_browser(cookie_str: str, token: str):
     """使用浏览器执行完整抽奖流程（包括点击任务按钮）"""
     print("\n  === 开始抽奖流程 (浏览器模式) ===")
+
+    # 0. 先检查是否需要执行阅读任务（需要在浏览器启动前执行）
+    print("\n  [0] 预检查任务状态...")
+    pre_status = check_lottery_status(token)
+    if pre_status.get("errno") == 0:
+        pre_data = pre_status.get("data", {})
+        pre_vote_info = pre_data.get("voteInfo", {})
+        if not pre_vote_info.get("isReading"):
+            print("    阅读任务未完成，先执行阅读...")
+            try:
+                from watch import run_watch
+                run_watch(cookie_str, watch_minutes=READING_MINUTES_FOR_LOTTERY)
+                print("    阅读任务执行完成")
+            except Exception as e:
+                print(f"    阅读任务执行失败: {e}")
+        else:
+            print("    阅读任务已完成")
 
     cookies = parse_cookies(cookie_str)
     # 为抽奖域名设置 cookies
@@ -163,11 +183,11 @@ def run_lottery_with_browser(cookie_str: str, token: str):
             else:
                 print("    [任务二] 分享页面: 已完成")
 
-            # 任务三：阅读漫画（如果未完成）
-            if not vote_info.get("isReading"):
-                print("    [任务三] 阅读漫画: 需要运行 watch.py 完成")
-            else:
+            # 任务三：阅读漫画已在步骤0处理
+            if vote_info.get("isReading"):
                 print("    [任务三] 阅读漫画: 已完成")
+            else:
+                print("    [任务三] 阅读漫画: 已在预检查阶段执行")
 
             # 4. 重新获取状态检查是否有新的抽奖次数
             page.wait_for_timeout(1000)
