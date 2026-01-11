@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-01-12
+
+### Added
+
+- 每日抽奖功能 (`src/lottery.py`)
+  - 自动完成关注微博任务（需首次手动关注）
+  - 自动完成分享任务
+  - 自动完成阅读任务（复用 watch.py）
+  - 自动执行所有可用抽奖次数
+  - API 签名机制：`MD5(channel + timestamp + secret)`
+- 抽奖 workflow (`lottery.yml`)
+  - 北京时间 11:00 自动执行
+  - 支持手动触发
+
 ## [1.2.3] - 2026-01-11
 
 ### Fixed
